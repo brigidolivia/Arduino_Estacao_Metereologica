@@ -1,0 +1,146 @@
+#include <Adafruit_BMP280.h>
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include <DHT.h>
+Adafruit_BMP280 bmp; // Declara objeto do tipo BMP
+DHT dht(4,DHT22); //Declara Objeto do tipo DHT
+float umid, temp_DHT,umid_cal; //Declara Variáveis
+float press, tempBMP;// Declara variáveis
+int bin,b; float tensao, temp_LM, temp_cal, tensaoLDR, res, lum; //Declara Variáveis
+uint8_t grau[8] ={B00111,B00101,B00111,B00000,B00000,B00000,B00000,B00000};
+uint8_t tio[8] = {B00101,B01010,B00000,B01110,B00001,B01111,B10001,B01111};
+//int bin; float tensaoLDR, res, lum; 
+LiquidCrystal_I2C lcd(0x27,16,2);
+void setup()
+{
+  Serial.begin(9600); //Inicializa Serial (9600Bits/Segundo)
+  dht.begin(); //Iniciliza objeto DHT
+  bmp.begin(0x76); // Inicializa objeto BMP
+  lcd.init();
+  lcd.backlight();
+  lcd.createChar(2,grau);
+  lcd.createChar(0,tio);
+}
+
+void loop()
+{
+  bin = analogRead(A2);
+  tensao = (bin/1023.0)*5.0; //Converte em tensão
+  temp_LM = 100.00*tensao+0.00; //Converte em temp.
+  temp_cal= 97.882*tensao+0.98; // Converte em Temp.
+  umid = dht.readHumidity(); //Defini Umidade
+  temp_DHT = dht.readTemperature(); //Defini Temperatura
+  umid = 1.00*umid+0.00; //Base de calculo
+  umid_cal = 0.947*umid +0.509; // Base de Calculo Umidade Calibrada
+  press = bmp.readPressure(); // Lê pressão
+  tempBMP = bmp.readTemperature();// Lê temperatura
+  bin = analogRead(A1); // Lê binário
+  tensaoLDR = (bin/1023.0)*5.0; // Calc. tensão
+  res = tensao*100000.0/(5.0-tensao); // Calc. resist.
+  lum = pow(10,6.5-1.25*log10(res)); // Calc. lumnos.
+  b = analogRead(A0); // Lê binário
+  tensao = (b/1023.0)*5.0; // Calc. tensão
+  res = tensao*100000.0/(5.0-tensao); // Calc. resist.
+  lum = pow(10,6.5-1.25*log10(res)); // Calc. lumnos.
+  //====Serial====
+
+  //LM35:
+  Serial.print("\n\nDado: ");
+  Serial.print(bin); // Exibe dado binário 
+  Serial.print("\nTensãoLM [V]: "); 
+  Serial.print(tensao); // Exibe tensão 
+  Serial.print("\nTemperatura [oC]: "); 
+  Serial.print(temp_LM); // Exibe temperatura
+  Serial.print("\nTemperatura Calibrada [°C]");
+  Serial.print(temp_cal);
+
+  //DHT22:
+  Serial.print("\n\nUmidade [%]: "); //Formata exibição Umid
+  Serial.print(umid); //Exibe Umidade
+  Serial.print("\nUmidade Calibrada [%]: "); // Formata Exibição Umid_Cal
+  Serial.print(umid_cal); //Exibe Umidade Calibrada
+
+  //BMP280
+  Serial.print("\n\nPressão [hPa]: ");
+  Serial.print(press/100); // Exibe pressão
+  Serial.print("\nTemp.BMP280 [ºC]: ");
+  Serial.print(tempBMP); // Exibe temperatura
+  Serial.print(F("Approx altitude = "));
+  Serial.print(bmp.readAltitude(1013.25)); /* Adjusted to local forecast! */
+  Serial.println(" m");
+  
+   //LDR:
+  Serial.print("\nTensãoLDR [V]: ");
+  Serial.print(tensaoLDR); // Exibe tensão
+  Serial.print("\nResistência [kΩ]: ");
+  Serial.print(res/1000); // Exibe resistência
+  Serial.print("\n\nDado: ");
+  Serial.print(bin); // Exibe binário
+  Serial.print("\nTensão [V]: ");
+  Serial.print(tensao); // Exibe tensão
+  Serial.print("\nResistência [kΩ]: ");
+  Serial.print(res/1000); // Exibe resistência
+  Serial.print("\nLuminosidade [Lux]: ");
+  Serial.print(lum); // Exibe luminosidade
+
+  //====LCD====
+  
+  //Temperatura:
+  lcd.setCursor(0,0);
+  lcd.print("Temperatura "); 
+  lcd.setCursor(0,1);
+  lcd.print(temp_cal);
+  lcd.write(2); 
+  lcd.print("C");
+  delay(2000);
+  lcd.setCursor(0,0);
+  lcd.print("                ");
+  lcd.setCursor(0,1);
+  lcd.print("                ");
+  
+  //Umidade:
+  lcd.setCursor(0,0);
+  lcd.print("Umidade [%]: ");
+  lcd.setCursor(0,1);
+  lcd.print(umid_cal);
+  delay(2000);
+  lcd.setCursor(0,0);
+  lcd.print("                ");
+  lcd.setCursor(0,1);
+  lcd.print("                ");
+
+  //Pressão
+  lcd.setCursor(0,0);
+  lcd.print("Press");
+  lcd.write(0);
+  lcd.print("o [hPa]:");
+  lcd.setCursor(0,1);
+  lcd.print(press/100);
+  delay(2000);
+  lcd.setCursor(0,0);
+  lcd.print("                ");
+  lcd.setCursor(0,1);
+  lcd.print("                ");
+  lcd.setCursor(0,0);
+
+  //Altitude
+  lcd.print("Altitude Aprox:");
+  lcd.setCursor(0,1);
+  lcd.print(bmp.readAltitude(1013.25));
+  lcd.print(" m");
+  delay(2000);
+  lcd.setCursor(0,0);
+  lcd.print("                ");
+  lcd.setCursor(0,1);
+  lcd.print("                ");
+
+  //Luminosidade
+  lcd.setCursor(0,0);
+  lcd.print("Lumi[Lux]: ");
+  lcd.setCursor(0,1);
+  lcd.print(lum);
+  delay(2000);
+  lcd.setCursor(0,0);
+  lcd.print("                ");
+  lcd.setCursor(0,1);
+  lcd.print("                ");}
